@@ -66,6 +66,29 @@ func (sm *sessionManager) addListener(listener sessionListener) {
 	}
 }
 
+func (sm *sessionManager) getRandomDialer(clientKey string) (Dialer, error) {
+	sm.Lock()
+	defer sm.Unlock()
+
+	sessions := sm.clients[clientKey]
+	if len(sessions) > 0 {
+		return toDialer(sessions[0], ""), nil
+	}
+
+	for _, sessions := range sm.peers {
+		for _, session := range sessions {
+			session.Lock()
+			keys := session.remoteClientKeys[clientKey]
+			session.Unlock()
+			if len(keys) > 0 {
+				return toDialer(session, clientKey), nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("failed to find Session for client %s", clientKey)
+}
+
 func (sm *sessionManager) getDialer(clientKey string) (Dialer, error) {
 	sm.Lock()
 	defer sm.Unlock()
